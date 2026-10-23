@@ -13,7 +13,7 @@ import re
 
 HERE = os.path.dirname(os.path.abspath(__file__))
 OUTDIR = os.path.dirname(HERE)
-VERSION = "v1"
+VERSION = "v2"
 TOTAL = 40.0
 
 # (id, start, VO-Zeile) – Dauer ergibt sich aus dem nächsten Start
@@ -73,6 +73,36 @@ def words(text, cls=""):
     return " ".join(out)
 
 
+def chars(text, cls=""):
+    """Buchstaben einzeln (für 1–2 Hero-Wörter), Maske pro Wort."""
+    out = []
+    for w in text.split(" "):
+        out.append('<span class="m">' + "".join('<span class="w ch %s">%s</span>' % (cls, c) for c in w) + '</span>')
+    return " ".join(out)
+
+
+def reel(rid):
+    """Ziffernrolle 0–9 zweimal: Index 10+n = Ziffer n nach einer Extrarunde."""
+    return '<span class="odo"><span class="reel" id="%s">%s</span></span>' % (rid, "".join("<span>%d</span>" % (i % 10) for i in range(20)))
+
+
+RAIL = ["Wunschkunde", "Antrieb", "Handlung"]
+
+
+def rail(sid, k):
+    """Fortschrittsschiene 01–03: Schritte < k sind erledigt, Schritt k wird in dieser Szene aktiv."""
+    parts = []
+    for i in range(1, 4):
+        if i > 1:
+            if i < k:
+                parts.append('<i class="rl"><b style="transform:scaleX(1)"></b></i>')
+            else:
+                parts.append('<i class="rl"><b%s></b></i>' % (' class="anim"' if i == k else ""))
+        cls = "rn" + (" on" if i < k else "") + (" cur" if i == k else "")
+        parts.append('<span class="%s">0%d %s</span>' % (cls, i, RAIL[i - 1]))
+    return '<div class="rail" id="%s-rail">%s</div>' % (sid, "".join(parts))
+
+
 # ── Icons (einheitlich: 8er-Strich, runde Enden, viewBox 0 0 120 120) ──────
 ICON = {
     "heart": '<path d="M60 100 C20 72 10 52 18 36 C26 20 48 18 60 36 C72 18 94 20 102 36 C110 52 100 72 60 100 Z"/>',
@@ -115,7 +145,7 @@ SC = {}
 
 SC["s01"] = ('<div class="bg glow"></div>',
              '<div class="duo">' + ad_card("s01-ad") +
-             '<div class="txt"><div class="h1" id="s01-h">' + words("SCHÖNES") + '<br>' + words("VIDEO.") + '</div></div></div>')
+             '<div class="txt"><div class="h1" id="s01-h">' + chars("SCHÖNES") + '<br>' + chars("VIDEO.") + '</div></div></div>')
 
 SC["s02"] = ('<div class="bg glow"></div>',
              '<div class="duo">' + ad_card("s02-ad") +
@@ -131,12 +161,12 @@ SC["s03"] = ('<div class="bg glow"></div>',
 hearts = "".join(icon("heart", "burst hrt h%d" % i) for i in range(10))
 SC["s04"] = ('<div class="bg"></div>',
              '<div class="center"><div class="field">' + hearts + '</div>'
-             '<div class="mega" id="s04-h">' + words("LIKES,") + '</div></div>')
+             '<div class="mega" id="s04-h">' + chars("LIKES,") + '</div></div>')
 
 cursors = "".join('<div class="clk c%d"><span class="ring"></span>%s</div>' % (i, icon("cursor")) for i in range(4))
 SC["s05"] = ('<div class="bg"></div>',
              '<div class="center"><div class="field">' + cursors + '</div>'
-             '<div class="mega" id="s05-h">' + words("KLICKS,") + '</div></div>')
+             '<div class="mega" id="s05-h">' + chars("KLICKS,") + '</div></div>')
 
 bubbles = "".join('<div class="bub b%d">%s</div>' % (i, t) for i, t in enumerate(["Wow!", "Mega Video!", "Richtig schön!", "Top gemacht!"]))
 SC["s06"] = ('<div class="bg"></div>',
@@ -169,7 +199,7 @@ SC["s10"] = ('<div class="bg glow2"></div><div class="tunnel">' +
 
 SC["s11"] = ('<div class="bg grid"></div><div class="ghost" data-layout-ignore id="s11-g">PSYCHOLOGIE</div>',
              '<div class="center"><div class="kick" id="s11-k">Darum starten wir mit</div>'
-             '<div class="h1 xl" id="s11-h">' + words("VERKAUFS-") + '<br><span class="ul">' + words("PSYCHOLOGIE.") +
+             '<div class="h1 xl" id="s11-h">' + words("VERKAUFS-") + '<br><span class="ul">' + chars("PSYCHOLOGIE.") +
              '<span class="line" id="s11-line"></span></span></div></div>')
 
 
@@ -187,17 +217,16 @@ orbit = ('<div class="orbit"><span class="core"></span>' +
 btn = ('<div class="cta-mini"><div class="mbtn" id="s14-btn">Anfrage senden</div>'
        '<div class="mcur" id="s14-cur">' + icon("cursor") + '</div><span class="ring" id="s14-ring"></span></div>')
 
-SC["s12"] = ('<div class="bg grid"></div>', step("01", target, "WUNSCHKUNDE", "Wer ist es wirklich?", "s12"))
-SC["s13"] = ('<div class="bg grid"></div>', step("02", orbit, "ANTRIEB", "Was treibt ihn an?", "s13"))
-SC["s14"] = ('<div class="bg grid"></div>',
-             step("03", btn, "HANDLUNG", "Was bringt ihn zum Handeln?", "s14") +
-             '<div class="chain" id="s14-chain"><span>Wunschkunde</span><i></i><span>Antrieb</span><i></i><span class="on">Handlung</span></div>')
+SC["s12"] = ('<div class="bg grid"></div>' + rail("s12", 1), step("01", target, "WUNSCHKUNDE", "Wer ist es wirklich?", "s12"))
+SC["s13"] = ('<div class="bg grid"></div>' + rail("s13", 2), step("02", orbit, "ANTRIEB", "Was treibt ihn an?", "s13"))
+SC["s14"] = ('<div class="bg grid"></div>' + rail("s14", 3),
+             step("03", btn, "HANDLUNG", "Was bringt ihn zum Handeln?", "s14"))
 
 notes = "".join('<div class="note n%d">%s<div><b>Neue Anfrage</b><small>%s</small></div></div>' % (i, icon("bell", "sm"), t)
                 for i, t in enumerate(["Kontaktformular · 08:12", "Anruf · 09:47", "WhatsApp · 11:03", "Kontaktformular · 14:26", "Anruf · 16:58"]))
 SC["s15"] = ('<div class="bg glow"></div>',
              '<div class="duo"><div class="txt"><div class="kick" id="s15-k">Kundenbeispiel · Handwerksbetrieb</div>'
-             '<div class="mega num-acc" id="s15-n"><span id="s15-a">0</span>–<span id="s15-b">0</span></div>'
+             '<div class="mega num-acc" id="s15-n">' + reel("s15-ra") + '<span class="dash">–</span>' + reel("s15-rb") + '</div>'
              '<div class="h2" id="s15-h">' + words("ANFRAGEN PRO TAG") + '</div></div>'
              '<div class="notes">' + notes + '</div></div>')
 
@@ -226,18 +255,18 @@ SC["s17"] = ('<div class="bg"></div>',
 SC["s18"] = ('<div class="bg grid"></div><div class="ghost" data-layout-ignore id="s18-g">STRATEGIE</div>',
              '<div class="center"><div class="chips"><span class="chip">2–5 / Tag</span><span class="chip">3–4 / Monat</span><span class="chip">Region</span></div>'
              '<div class="h2 muted" id="s18-a">' + words("DEIN ZIEL.") + '</div>'
-             '<div class="h1" id="s18-h">' + words("DEINE") + ' <span class="ul">' + words("STRATEGIE.") +
+             '<div class="h1" id="s18-h">' + words("DEINE") + ' <span class="ul">' + chars("STRATEGIE.") +
              '<span class="line" id="s18-line"></span></span></div></div>')
 
 SC["s19"] = ('<div class="bg glow"></div>',
              '<div class="duo">' + '<div class="adwrap">' + ad_card("s19-ad") +
              '<div class="notes over">' + "".join('<div class="note k%d">%s<div><b>Neue Anfrage</b><small>gerade eben</small></div></div>' % (i, icon("bell", "sm")) for i in range(3)) + '</div></div>'
              '<div class="txt"><div class="kick" id="s19-k">Jetzt</div>'
-             '<div class="h1" id="s19-h">' + words("KOSTENLOSE") + '<br>' + words("MARKETING-") + '<br>' + words("ANALYSE.", "acc") + '</div></div></div>')
+             '<div class="h1" id="s19-h">' + '<span class="hlw"><span class="hlb" id="s19-hlb"></span>' + words("KOSTENLOSE") + '</span><br>' + words("MARKETING-") + '<br>' + words("ANALYSE.", "acc") + '</div></div></div>')
 
 SC["s20"] = ('<div class="bg"></div><div class="sparks">' + "".join('<span class="sp p%d"></span>' % i for i in range(8)) + '</div>',
              '<div class="center"><div class="kick" id="s20-k">In jedem Fall</div>'
-             '<div class="h1" id="s20-h">' + words("KONKRETE") + '<br><span class="ul">' + words("IDEEN.") +
+             '<div class="h1" id="s20-h">' + words("KONKRETE") + '<br><span class="ul">' + chars("IDEEN.") +
              '<span class="line" id="s20-line"></span></span></div>'
              '<div class="body" id="s20-b">Für Dein Marketing.</div></div>')
 
@@ -246,7 +275,7 @@ SC["s21"] = ('<div class="bg glow"></div><div class="ghost" data-layout-ignore i
              '<div class="brand" id="s21-brand">CLEES &amp; ERNSTER</div>'
              '<div class="claim" id="s21-claim">' + words("Erst die") + ' <span class="ul">' + words("Strategie.") +
              '<span class="line" id="s21-line"></span></span> ' + words("Dann das Bild.") + '</div>'
-             '<div class="btn" id="s21-btn">Kostenloses Strategiegespräch <span class="arr">→</span></div></div>')
+             '<div class="btn" id="s21-btn"><span class="shim"></span>Kostenloses Strategiegespräch <span class="arr">→</span></div></div>')
 
 
 CSS = r"""
@@ -269,8 +298,25 @@ html,body{width:__W__px;height:__H__px;overflow:hidden;background:var(--bg);colo
   background:radial-gradient(ellipse at center,transparent 55%,rgba(0,0,0,.45) 100%),
   radial-gradient(rgba(255,255,255,.05) 1px,transparent 1.4px) 0 0/5px 5px,
   radial-gradient(rgba(255,255,255,.035) 1px,transparent 1.4px) 2px 3px/7px 7px}
-.wipe{position:absolute;inset:0;z-index:6;background:var(--acc);opacity:0}
-.flash{position:absolute;inset:0;z-index:7;background:#dfe9ff;opacity:0}
+.wipe2{position:absolute;inset:0;z-index:6;background:var(--navy);opacity:0}
+.wipe{position:absolute;inset:0;z-index:7;background:var(--acc);opacity:0}
+.shock{position:absolute;left:50%;top:50%;width:300px;height:300px;margin:-150px;border-radius:50%;border:6px solid var(--acc);opacity:0;z-index:1}
+.ch{display:inline-block}
+.odo{display:inline-block;height:.9em;overflow:hidden;vertical-align:top}
+.reel{display:flex;flex-direction:column}
+.reel span{display:block;height:.9em;line-height:.9em}
+.num-acc .dash{color:var(--ink)}
+.rail{position:absolute;z-index:3;left:50%;top:var(--railt);transform:translateX(-50%);display:flex;align-items:center;gap:14px;white-space:nowrap}
+.rn{padding:12px 24px;border-radius:999px;border:2px solid rgba(77,141,255,.35);font-weight:700;font-size:var(--chip);color:var(--muted);background:rgba(6,8,13,.6)}
+.rn.on{background:rgba(77,141,255,.18);color:var(--ink);border-color:var(--acc)}
+.rl{display:block;width:var(--rlw);height:4px;background:rgba(77,141,255,.2);border-radius:4px;overflow:hidden}
+.rl b{display:block;height:100%;width:100%;background:var(--acc);transform-origin:left;transform:scaleX(0)}
+.hlw{position:relative;display:inline-block;isolation:isolate}
+.hlb{position:absolute;left:-.1em;right:-.1em;top:.04em;bottom:-.04em;background:var(--acc);transform-origin:left;transform:scaleX(0);z-index:-1;border-radius:.06em}
+.btn{position:relative;overflow:hidden}
+.shim{position:absolute;top:0;bottom:0;width:30%;left:-40%;background:linear-gradient(100deg,transparent,rgba(255,255,255,.5),transparent);transform:skewX(-20deg)}
+.logo span{display:inline-block}
+.flash{position:absolute;inset:0;z-index:8;background:#dfe9ff;opacity:0}
 .ghost{position:absolute;z-index:1;top:50%;left:0;white-space:nowrap;font-weight:900;font-size:calc(var(--mega)*1.6);line-height:1;
   letter-spacing:-.03em;color:rgba(77,141,255,.07);transform:translateY(-50%)}
 
@@ -415,14 +461,14 @@ html,body{width:__W__px;height:__H__px;overflow:hidden;background:var(--bg);colo
 """
 
 CSS_169 = r"""
-:root{--brand:100px;--mega:250px;--h1:170px;--h1d:132px;--h1s:132px;--big:150px;--xl:150px;--h2:84px;--kick:32px;--body:40px;--bodyw:900px;--gap:110px;--adw:720px;
+:root{--railt:96px;--rlw:70px;--brand:100px;--mega:250px;--h1:170px;--h1d:132px;--h1s:132px;--big:150px;--xl:150px;--h2:84px;--kick:32px;--body:40px;--bodyw:900px;--gap:110px;--adw:720px;
   --icsm:34px;--hrt:150px;--bub:42px;--phone:420px;--iconbox:320px;--mbtn:40px;--chip:30px;--chainb:90px;--notew:560px;--noteb:30px;--notes:28px;
   --calw:560px;--logo:200px;--claim:64px;--btn:44px}
 .scene-content{padding:110px 150px}
 """
 
 CSS_916 = r"""
-:root{--brand:76px;--mega:200px;--h1:118px;--h1d:104px;--h1s:96px;--big:84px;--xl:100px;--h2:72px;--kick:28px;--body:38px;--bodyw:820px;--gap:60px;--adw:760px;
+:root{--railt:262px;--rlw:24px;--brand:76px;--mega:200px;--h1:118px;--h1d:104px;--h1s:96px;--big:84px;--xl:100px;--h2:72px;--kick:28px;--body:38px;--bodyw:820px;--gap:60px;--adw:760px;
   --icsm:30px;--hrt:120px;--bub:38px;--phone:300px;--iconbox:300px;--mbtn:36px;--chip:28px;--chainb:690px;--notew:760px;--noteb:30px;--notes:28px;
   --calw:600px;--logo:150px;--claim:46px;--btn:36px}
 .scene-content{padding:250px 140px 800px 90px}
@@ -445,298 +491,8 @@ CSS_916 = r"""
 .btn{padding:26px 40px}
 """
 
-JS = r"""
-window.__timelines = window.__timelines || {};
-var tl = gsap.timeline({ paused: true });
-var T = __T__, END = __END__, V = __VERT__;
-var M = {
-  tempo: 0.85,
-  dur:  { xs: 0.12, s: 0.25, m: 0.45, l: 0.8 },
-  ease: { enter: "power4.out", exit: "power3.in", accent: "expo.out", hold: "sine.inOut", pop: "back.out(1.2)" },
-  stagger: 0.05
-};
-function d(k) { return M.dur[k] * M.tempo; }
-function q(s) { return document.querySelector(s); }
+JS = open(os.path.join(HERE, "js_v2.js"), encoding="utf-8").read()
 
-// Szenen-Sichtbarkeit (harte Schnitte)
-Object.keys(T).forEach(function (id) {
-  if (id !== "s01") tl.set("#" + id, { autoAlpha: 1 }, T[id]);
-  if (END[id] < __TOTAL__) tl.set("#" + id, { autoAlpha: 0 }, END[id]);
-});
-
-// ── Bausteine ──
-function slam(sel, t, st) { tl.from(sel + " .w", { yPercent: 115, duration: d("m"), ease: M.ease.enter, stagger: st || M.stagger }, t); }
-function punch(sel, t, from) { tl.fromTo(sel, { scale: from || 1.5, autoAlpha: 0 }, { scale: 1, autoAlpha: 1, duration: d("s") + 0.05, ease: M.ease.accent }, t); }
-function kick(sel, t) { tl.from(sel, { x: -40, autoAlpha: 0, duration: d("m"), ease: M.ease.accent }, t); }
-function line(sel, t) { tl.to(sel, { scaleX: 1, duration: d("m"), ease: M.ease.accent }, t); }
-function push(id, s) { tl.fromTo("#" + id + " .scene-content", { scale: 1 }, { scale: s || 1.04, duration: END[id] - T[id], ease: "none" }, T[id]); }
-function wipe(id, dir) { var w = "#" + id + " .wipe"; tl.set(w, { xPercent: 0, opacity: 1 }, T[id]); tl.to(w, { xPercent: dir < 0 ? -101 : 101, duration: 0.3, ease: "power3.in" }, T[id]); }
-function flash(id, t) { var f = "#" + id + " .flash"; tl.set(f, { opacity: 0.75 }, t); tl.to(f, { opacity: 0, duration: 0.3, ease: "power2.out" }, t); }
-function shake(id, t, a) {
-  var c = "#" + id + " .scene-content", k = a || 1;
-  [[-14, 8], [12, -6], [-8, 5], [5, -3], [0, 0]].forEach(function (p, i) {
-    tl.to(c, { x: p[0] * k, y: p[1] * k, duration: 0.035, ease: "none" }, t + i * 0.035);
-  });
-}
-function ghost(id, dx) { tl.fromTo("#" + id + " .ghost", { x: 0 }, { x: dx, duration: END[id] - T[id], ease: "none" }, T[id]); }
-function shine(card, t) { tl.fromTo(card + " .ad-shine", { left: "-40%" }, { left: "130%", duration: 0.9, ease: "power2.inOut" }, t); }
-
-// ── S01–S03 Hook: Schön ≠ Kunden ──
-(function () {
-  var t = T.s01;
-  shine("#s01-ad", t + 0.1);
-  tl.fromTo("#s01-ad .ad-play", { scale: 1 }, { scale: 1.08, duration: 0.6, yoyo: true, repeat: 1, ease: M.ease.hold }, t);
-  tl.fromTo("#s01-ad .ad-prog", { scaleX: 0.08 }, { scaleX: 0.3, duration: 1.3, ease: "none" }, t);
-  tl.fromTo("#s01-ad", { rotation: -1.5, y: 10 }, { rotation: 0, y: 0, duration: 1.3, ease: "power2.out" }, t);
-  push("s01", 1.03);
-
-  t = T.s02;
-  tl.fromTo("#s02-ad .ad-prog", { scaleX: 0.3 }, { scaleX: 0.55, duration: 1.0, ease: "none" }, t);
-  kick("#s02-k", t + 0.02);
-  slam("#s02-h", t + 0.08);
-  shine("#s02-ad", t + 0.2);
-  push("s02", 1.03);
-
-  t = T.s03;
-  tl.set("#s03-ad .ad-prog", { scaleX: 0.55 }, t);
-  tl.to("#s03-ad .ad-play", { autoAlpha: 0, duration: 0.05 }, t + 0.35);
-  tl.to("#s03-ad .ad-pause", { opacity: 1, duration: 0.05 }, t + 0.35);
-  tl.to("#s03-ad .ad-media", { filter: "grayscale(1) brightness(.55)", duration: 0.25, ease: "power2.out" }, t + 0.35);
-  tl.fromTo("#s03-strike", { scaleX: 0, rotation: -58 }, { scaleX: 1, rotation: -58, duration: d("s"), ease: M.ease.accent }, t + 0.4);
-  flash("s03", t + 0.4);
-  shake("s03", t + 0.42, 1.2);
-  tl.fromTo("#s03-ad", { scale: 1 }, { scale: 0.96, duration: 0.9, ease: "power2.out" }, t + 0.4);
-})();
-
-// ── S04–S06 Lärm: Likes, Klicks, Komplimente ──
-(function () {
-  var t = T.s04, H = [[-560, -260], [520, -220], [-380, 260], [430, 280], [-720, 30], [700, 40], [-150, -330], [180, 330], [-250, -120], [270, 120]];
-  if (V) H = H.map(function (p) { return [p[0] * 0.55, p[1] * 1.5]; });
-  wipe("s04", 1);
-  punch("#s04-h", t + 0.05, 1.6);
-  H.forEach(function (p, i) {
-    var el = "#s04 .h" + i, tt = t + 0.08 + i * 0.03;
-    tl.fromTo(el, { x: 0, y: 0, scale: 0.2, rotation: 0, autoAlpha: 1 },
-      { x: p[0], y: p[1] - 60, scale: 0.5 + (i % 3) * 0.25, rotation: (i % 2 ? 14 : -14), duration: 0.55, ease: "expo.out" }, tt);
-  });
-  shake("s04", t + 0.08, 0.7);
-
-  t = T.s05;
-  var C = [[-560, -200], [540, -160], [-420, 230], [460, 250]];
-  if (V) C = [[-280, -440], [280, -360], [-260, 380], [270, 440]];
-  C.forEach(function (p, i) {
-    var el = "#s05 .c" + i, tt = t + 0.04 + i * 0.09;
-    tl.fromTo(el, { x: p[0] * 1.4, y: p[1] * 1.4, autoAlpha: 0 }, { x: p[0], y: p[1], autoAlpha: 1, duration: 0.22, ease: "power3.out" }, tt);
-    tl.to(el + " .ic", { scale: 0.82, duration: 0.06, yoyo: true, repeat: 1 }, tt + 0.22);
-    tl.fromTo(el + " .ring", { scale: 0.2, opacity: 1 }, { scale: 2.2, opacity: 0, duration: 0.35, ease: "power2.out" }, tt + 0.24);
-  });
-  punch("#s05-h", t + 0.02, 0.6);
-
-  t = T.s06;
-  var B = [[-560, -230], [480, -250], [-500, 240], [520, 220]];
-  if (V) B = [[-140, -430], [150, -320], [-120, 360], [120, 460]];
-  B.forEach(function (p, i) {
-    tl.fromTo("#s06 .b" + i, { x: p[0], y: p[1] + 30, scale: 0.4, autoAlpha: 0 }, { x: p[0], y: p[1], scale: 1, autoAlpha: 1, duration: 0.25, ease: M.ease.pop }, t + 0.05 + i * 0.08);
-  });
-  slam("#s06-h", t + 0.02, 0.04);
-  push("s06", 1.05);
-})();
-
-// ── S07 Stille ──
-(function () {
-  var t = T.s07;
-  tl.fromTo("#s07-flat", { strokeDasharray: 600, strokeDashoffset: 600 }, { strokeDashoffset: 0, duration: 1.2, ease: "none" }, t + 0.1);
-  kick("#s07-k", t + 0.15);
-  tl.fromTo("#s07-n", { yPercent: -40, autoAlpha: 0 }, { yPercent: 0, autoAlpha: 1, duration: 0.35, ease: "bounce.out" }, t + 0.25);
-  tl.from("#s07-b", { y: 20, autoAlpha: 0, duration: 0.4, ease: "power2.out" }, t + 0.55);
-  push("s07", 1.025);
-})();
-
-// ── S08–S10 Das Weil: sehen → fühlen ──
-(function () {
-  var t = T.s08;
-  wipe("s08", -1);
-  slam("#s08-h", t + 0.08, 0.07);
-  ghost("s08", -400);
-  push("s08", 1.05);
-
-  t = T.s09;
-  tl.to("#s09 .eye .dr", { strokeDashoffset: 0, duration: 0.6, ease: "power2.out", stagger: 0.12 }, t + 0.05);
-  slam("#s09-h", t + 0.1);
-  tl.to("#s09-strike", { scaleX: 1, duration: d("s"), ease: M.ease.accent }, t + 1.0);
-  tl.to("#s09-h .w", { color: "rgba(242,245,250,.4)", duration: 0.2 }, t + 1.05);
-  tl.to("#s09 .eye", { color: "rgba(242,245,250,.35)", duration: 0.2 }, t + 1.05);
-  shake("s09", t + 1.02, 0.6);
-  push("s09", 1.03);
-
-  t = T.s10;
-  for (var i = 0; i < 5; i++) {
-    tl.fromTo("#s10 .t" + i, { scale: 0.2 + i * 0.5, autoAlpha: 0.9 }, { scale: 4 + i * 1.2, autoAlpha: 0, duration: 1.2, ease: "power2.out" }, t + i * 0.05);
-  }
-  tl.fromTo("#s10 .scene-content", { scale: 1.6 }, { scale: 1, duration: 0.5, ease: M.ease.accent }, t);
-  tl.to("#s10-ecg", { strokeDashoffset: 0, duration: 1.1, ease: "power1.inOut" }, t + 0.1);
-  kick("#s10-k", t + 0.15);
-  slam("#s10-h", t + 0.2);
-  line("#s10-line", t + 0.95);
-  tl.to("#s10 .ul .w", { color: "#4d8dff", duration: 0.2 }, t + 0.95);
-})();
-
-// ── S11 Verkaufspsychologie ──
-(function () {
-  var t = T.s11;
-  flash("s11", t);
-  kick("#s11-k", t + 0.05);
-  slam("#s11-h", t + 0.15, 0.08);
-  shake("s11", t + 0.5, 0.8);
-  line("#s11-line", t + 0.9);
-  ghost("s11", -500);
-  tl.fromTo("#s11 .bg", { backgroundPosition: "0px 0px" }, { backgroundPosition: "0px -96px", duration: END.s11 - t, ease: "none" }, t);
-  push("s11", 1.05);
-})();
-
-// ── S12–S14 Die drei Schritte ──
-(function () {
-  var t = T.s12;
-  wipe("s12", 1);
-  [".r1", ".r2", ".r3"].forEach(function (r, i) { tl.from("#s12 " + r, { scale: 0, duration: 0.45, ease: M.ease.accent }, t + 0.05 + i * 0.07); });
-  tl.to("#s12 .person .dr", { strokeDashoffset: 0, duration: 0.55, ease: "power2.out", stagger: 0.1 }, t + 0.25);
-  tl.to("#s12 .r3", { scale: 1.12, duration: 0.25, yoyo: true, repeat: 1, ease: M.ease.hold }, t + 0.8);
-  kick("#s12-n", t + 0.05); slam("#s12-h", t + 0.1);
-  tl.from("#s12-b", { y: 18, autoAlpha: 0, duration: 0.35, ease: "power2.out" }, t + 0.45);
-  push("s12", 1.04);
-
-  t = T.s13;
-  var R = V ? 110 : 150;
-  for (var i = 0; i < 4; i++) {
-    var a0 = i * Math.PI / 2;
-    (function (i, a0) {
-      var o = { a: 0 };
-      var el = q("#s13 .d" + i);
-      tl.fromTo(o, { a: 0 }, { a: Math.PI * 1.5, duration: END.s13 - t, ease: "power2.out",
-        onUpdate: function () { var r = R * Math.min(1, 0.3 + o.a * 1.2); el.style.transform = "translate(" + (Math.cos(a0 + o.a) * r) + "px," + (Math.sin(a0 + o.a) * r) + "px)"; } }, t);
-    })(i, a0);
-  }
-  tl.from("#s13 .core", { scale: 0, duration: 0.4, ease: M.ease.pop }, t + 0.05);
-  kick("#s13-n", t + 0.05); slam("#s13-h", t + 0.1);
-  tl.from("#s13-b", { y: 18, autoAlpha: 0, duration: 0.35, ease: "power2.out" }, t + 0.45);
-  push("s13", 1.04);
-
-  t = T.s14;
-  tl.from("#s14-btn", { scale: 0.6, autoAlpha: 0, duration: 0.35, ease: M.ease.pop }, t + 0.05);
-  tl.from("#s14-cur", { x: 160, y: 140, duration: 0.45, ease: "power3.out" }, t + 0.2);
-  tl.to("#s14-btn", { scale: 0.92, duration: 0.07, yoyo: true, repeat: 1 }, t + 0.66);
-  tl.fromTo("#s14-ring", { scale: 0.2, opacity: 1 }, { scale: 2.4, opacity: 0, duration: 0.45, ease: "power2.out" }, t + 0.68);
-  tl.to("#s14-btn", { backgroundColor: "#3ddc84", duration: 0.15 }, t + 0.7);
-  kick("#s14-n", t + 0.05); slam("#s14-h", t + 0.1);
-  tl.from("#s14-b", { y: 18, autoAlpha: 0, duration: 0.35, ease: "power2.out" }, t + 0.45);
-  tl.from("#s14-chain > *", { autoAlpha: 0, y: 20, duration: 0.3, ease: "power3.out", stagger: 0.07 }, t + 0.95);
-  push("s14", 1.04);
-})();
-
-// ── S15–S18 Jede Größe ──
-(function () {
-  var t = T.s15;
-  flash("s15", t);
-  kick("#s15-k", t + 0.05);
-  tl.from("#s15-n", { scale: 1.4, autoAlpha: 0, duration: 0.35, ease: M.ease.accent }, t + 0.1);
-  var a = { v: 0 }, b = { v: 0 };
-  tl.to(a, { v: 2, duration: 0.6, ease: "power2.out", onUpdate: function () { q("#s15-a").textContent = Math.round(a.v); } }, t + 0.15);
-  tl.to(b, { v: 5, duration: 0.9, ease: "power2.out", onUpdate: function () { q("#s15-b").textContent = Math.round(b.v); } }, t + 0.35);
-  slam("#s15-h", t + 0.4);
-  var n = V ? 3 : 5;
-  for (var i = 0; i < n; i++) {
-    tl.from("#s15 .n" + i, { x: V ? 0 : 120, y: V ? -40 : 0, autoAlpha: 0, duration: 0.3, ease: "power4.out" }, t + 0.6 + i * 0.5);
-    tl.to("#s15 .n" + i + " .ic", { rotation: 18, duration: 0.06, yoyo: true, repeat: 3 }, t + 0.7 + i * 0.5);
-  }
-  push("s15", 1.03);
-
-  t = T.s16;
-  wipe("s16", -1);
-  kick("#s16-k", t + 0.05);
-  punch("#s16-n", t + 0.1, 1.5);
-  slam("#s16-h", t + 0.3);
-  tl.from("#s16-cal", { y: 60, autoAlpha: 0, duration: 0.4, ease: "power4.out" }, t + 0.15);
-  [0, 1, 2, 3].forEach(function (i) { tl.fromTo("#s16 .h" + i, { "--k": 0 }, { "--k": 1, duration: 0.3, ease: M.ease.pop }, t + 0.6 + i * 0.32); });
-  push("s16", 1.03);
-
-  t = T.s17;
-  kick("#s17-k", t + 0.05);
-  slam("#s17-h", t + 0.1, 0.06);
-  tl.from("#s17 .mpin", { y: -120, autoAlpha: 0, duration: 0.4, ease: "bounce.out" }, t + 0.15);
-  [".w1", ".w2", ".w3"].forEach(function (w, i) {
-    tl.fromTo("#s17 " + w, { scale: 1, opacity: 0.9 }, { scale: 34, opacity: 0, duration: 1.4, ease: "power1.out" }, t + 0.5 + i * 0.45);
-  });
-  document.querySelectorAll("#s17 .pt").forEach(function (p) {
-    var dd = parseFloat(p.getAttribute("data-d"));
-    tl.to(p, { backgroundColor: "#4d8dff", scale: 1.3, duration: 0.25, ease: "power2.out" }, t + 0.5 + dd / 330);
-  });
-  push("s17", 1.03);
-
-  t = T.s18;
-  tl.from("#s18 .chip", { y: 30, autoAlpha: 0, duration: 0.3, ease: "power3.out", stagger: 0.08 }, t + 0.05);
-  slam("#s18-a", t + 0.15);
-  slam("#s18-h", t + 1.0, 0.07);
-  line("#s18-line", t + 1.6);
-  tl.to("#s18 .chip", { borderColor: "#4d8dff", color: "#f2f5fa", duration: 0.2, stagger: 0.06 }, t + 1.6);
-  shake("s18", t + 1.62, 0.5);
-  ghost("s18", -420);
-  push("s18", 1.04);
-})();
-
-// ── S19 Payoff: dieselbe Anzeige – jetzt mit Anfragen ──
-(function () {
-  var t = T.s19;
-  wipe("s19", 1);
-  tl.from("#s19-ad", { scale: 0.9, rotation: -2, duration: 0.5, ease: M.ease.accent }, t + 0.05);
-  tl.fromTo("#s19-ad .ad-prog", { scaleX: 0.55 }, { scaleX: 1, duration: 2.6, ease: "none" }, t);
-  shine("#s19-ad", t + 0.2);
-  [0, 1, 2].forEach(function (i) {
-    tl.from("#s19 .k" + i, { x: 80, scale: 0.8, autoAlpha: 0, duration: 0.3, ease: M.ease.pop }, t + 0.45 + i * 0.4);
-    tl.to("#s19 .k" + i + " .ic", { rotation: 18, duration: 0.06, yoyo: true, repeat: 3 }, t + 0.55 + i * 0.4);
-  });
-  kick("#s19-k", t + 0.1);
-  slam("#s19-h", t + 0.2, 0.07);
-  push("s19", 1.03);
-})();
-
-// ── S20 Konkrete Ideen ──
-(function () {
-  var t = T.s20;
-  for (var i = 0; i < 8; i++) {
-    tl.set("#s20 .p" + i, { rotation: i * 45 }, t);
-    tl.fromTo("#s20 .p" + i, { scaleY: 0, y: 0, opacity: 1 }, { scaleY: 1, y: -(V ? 260 : 300), opacity: 0, duration: 0.7, ease: "power3.out" }, t + 0.9);
-  }
-  kick("#s20-k", t + 0.05);
-  slam("#s20-h", t + 0.12, 0.08);
-  line("#s20-line", t + 0.8);
-  tl.to("#s20 .ul .w", { color: "#4d8dff", duration: 0.2 }, t + 0.8);
-  tl.from("#s20-b", { y: 20, autoAlpha: 0, duration: 0.4, ease: "power2.out" }, t + 1.1);
-  push("s20", 1.04);
-})();
-
-// ── S21 Ende: letzter Frame = Peak ──
-(function () {
-  var t = T.s21;
-  flash("s21", t);
-  tl.from("#s21-logo", { scale: 0, rotation: -20, duration: 0.5, ease: "back.out(1.6)" }, t + 0.05);
-  tl.from("#s21-brand", { y: 30, autoAlpha: 0, duration: 0.45, ease: M.ease.accent }, t + 0.3);
-  slam("#s21-claim", t + 0.6, 0.06);
-  line("#s21-line", t + 1.2);
-  tl.from("#s21-btn", { y: 40, scale: 0.8, autoAlpha: 0, duration: 0.45, ease: "back.out(1.5)" }, t + 0.8);
-  tl.to("#s21-btn", { scale: 1.05, duration: 0.35, yoyo: true, repeat: 1, ease: M.ease.hold }, t + 1.7);
-  tl.fromTo("#s21-btn .arr", { x: 0 }, { x: 10, duration: 0.3, yoyo: true, repeat: 3, ease: M.ease.hold }, t + 1.8);
-  ghost("s21", -260);
-})();
-
-// ── Untertitel (9:16) ──
-document.querySelectorAll(".sub").forEach(function (el) {
-  var a = parseFloat(el.getAttribute("data-a")), b = parseFloat(el.getAttribute("data-b"));
-  tl.set(el, { autoAlpha: 1 }, a);
-  if (b < __TOTAL__) tl.set(el, { autoAlpha: 0 }, b);
-});
-
-window.__timelines["main"] = tl;
-"""
 
 
 def build(fmt):
@@ -752,11 +508,11 @@ def build(fmt):
     for i, (sid, start, vo) in enumerate(SHOTS):
         dur = round(ends[sid] - start, 3)
         deco, content = SC[sid]
-        vis = '' if i == 0 else ' style="visibility:hidden;"'
+        vis = ' style="opacity:0;"' if sid in ("s10", "s11") else ('' if i == 0 else ' style="visibility:hidden;"')
         scenes.append(
             '\n<!-- %s (%.2f–%.2fs) | VO: "%s" -->\n'
             '<div class="scene clip" id="%s" data-start="%s" data-duration="%s" data-track-index="0"%s>\n'
-            '%s\n<div class="scene-content">%s</div>\n<div class="wipe"></div><div class="flash"></div>\n</div>'
+            '%s\n<div class="shock"></div>\n<div class="scene-content">%s</div>\n<div class="wipe2"></div><div class="wipe"></div><div class="flash"></div>\n</div>'
             % (sid, start, ends[sid], vo, sid, start, dur, vis, deco, content))
 
     subs = '\n<div class="fx clip" id="fx" data-start="0" data-duration="%s" data-track-index="2"></div>' % TOTAL
@@ -782,6 +538,7 @@ def build(fmt):
 <meta name="viewport" content="width=%(W)s, height=%(H)s" />
 <script src="https://cdn.jsdelivr.net/npm/gsap@3.14.2/dist/gsap.min.js"></script>
 <script src="https://cdn.jsdelivr.net/npm/@hyperframes/core/dist/hyperframe.runtime.iife.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/@hyperframes/shader-transitions/dist/index.global.js"></script>
 <style>
 %(font)s
 %(css)s
